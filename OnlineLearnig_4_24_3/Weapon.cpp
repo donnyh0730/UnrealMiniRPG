@@ -134,16 +134,17 @@ void AWeapon::Equip(AMain* Character)
 
 		SkeletalMesh->SetSimulatePhysics(false);
 
-		if (!Character->RightEquippedWeapon)
+		const USkeletalMeshSocket* RighetHandSocket = Character->GetMesh()->GetSocketByName("RightHandSocket");
+		RighetHandSocket->AttachActor(this, Character->GetMesh());
+		/*if (!Character->RightEquippedWeapon)
 		{
-			const USkeletalMeshSocket* RighetHandSocket = Character->GetMesh()->GetSocketByName("RightHandSocket");
-			RighetHandSocket->AttachActor(this, Character->GetMesh());
+
 		}
 		else if (!Character->LeftEquippedWeapon)
 		{
 			const USkeletalMeshSocket* LeftHandSocket = Character->GetMesh()->GetSocketByName("LeftHandSocket");
 			LeftHandSocket->AttachActor(this, Character->GetMesh());
-		}
+		}*/
 		bRotate = false;
 
 		Character->SetEquippedWeapon(this);

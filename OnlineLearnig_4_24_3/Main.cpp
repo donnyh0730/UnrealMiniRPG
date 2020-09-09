@@ -137,7 +137,9 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
+	PlayerInputComponent->BindAction("Charge", IE_Pressed, this, &AMain::Charge);
+
+	PlayerInputComponent->BindAction("Sprint", IE_DoubleClick, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUP);
 
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
@@ -289,6 +291,42 @@ void AMain::LookUpAtRate(float rate)
 	AddControllerPitchInput(rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
+void AMain::Charge()
+{
+	if (MovementStatus == EMovementStatus::EMS_Dead)
+		return;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!IsValid(AnimInstance))
+	{
+		return;
+	}
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
+
+	const FRotator Rotation = Controller->GetControlRotation();
+	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
+	SetActorRelativeRotation(YawRotation);
+	AnimInstance->Montage_Play(BaseMotionMontage, 1.35f);
+	AnimInstance->Montage_JumpToSection(FName("Rolling"), BaseMotionMontage);
+	
+	AttackEnd();
+	ComboAttackEnd();
+}
+
+void AMain::OnChargeEnd()
+{
+	
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	
+
+	const FRotator Rotation = Controller->GetControlRotation();
+	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
+	SetActorRelativeRotation(YawRotation);
+}
+
 void AMain::Jump()
 {
 	if (MovementStatus != EMovementStatus::EMS_Dead)
@@ -325,9 +363,20 @@ void AMain::LMBUp()
 	bLMBDown = false;
 }
 
+
 void AMain::DetachWeapon()
 {
-	if (RightEquippedWeapon && LeftEquippedWeapon)
+	if (RightEquippedWeapon)
+	{
+		const FVector location = GetActorLocation();
+		const FRotator Rotation = FRotator(0.f);
+		GetWorld()->SpawnActor(RightEquippedWeapon->GetClass(), &location, &Rotation);
+		RightEquippedWeapon->Destroy();
+		RightEquippedWeapon = nullptr;
+		bEquipedWeapon = false;
+		return;
+	}
+	/*if (RightEquippedWeapon && LeftEquippedWeapon)
 	{
 		const FVector location = GetActorLocation();
 		const FRotator Rotation = FRotator(0.f);
@@ -349,7 +398,7 @@ void AMain::DetachWeapon()
 	if (!RightEquippedWeapon && !LeftEquippedWeapon)
 	{
 		bEquipedWeapon = false;
-	}
+	}*/
 }
 
 void AMain::SetEquippedWeapon(AWeapon* Weapon)
@@ -361,12 +410,12 @@ void AMain::SetEquippedWeapon(AWeapon* Weapon)
 		DeterminWeaponStatus();
 		return;
 	}
-	else if(!LeftEquippedWeapon)
+	/*else if(!LeftEquippedWeapon)
 	{
-		LeftEquippedWeapon = Weapon; 
+		LeftEquippedWeapon = Weapon;
 		DeterminWeaponStatus();
 		return;
-	}
+	}*/
 	
 }
 

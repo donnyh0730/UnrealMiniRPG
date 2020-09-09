@@ -214,6 +214,11 @@ public:
 
 	void LookUpAtRate(float rate);
 
+	void Charge();
+	
+	UFUNCTION(BlueprintCallable)
+	void OnChargeEnd();
+
 	virtual void Jump() override;
 
 	bool bLMBDown;
@@ -223,7 +228,7 @@ public:
 	void LMBUp();
 
 	uint8 LMBDownCount;
-
+	
 	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = "Combat")
 	bool bEquipedWeapon;
 

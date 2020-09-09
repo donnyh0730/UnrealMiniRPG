@@ -52,7 +52,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
 	USphereComponent* CombatSphere;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	UPROPERTY(BlueprintReadOnly, Category = "AI")
 	AAIController* AIController;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Widgets")
