@@ -68,6 +68,12 @@ public:
 	float Damage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	float ReactingSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	float AttackSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	UParticleSystem* HitParticles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
@@ -96,18 +102,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	TSubclassOf<UDamageType> DamageTypeClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	AWeapon* AttackingWeapon;
-
 	FTimerHandle DeathTimer;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float DeathDelay;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AI")
+	bool bHasTarget;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void DamageReact_Anim(float In_Damage);
+
+	virtual void AttackMotion_Anim();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -140,6 +149,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MoveToTarget(AMain* Target);
 
+	virtual void DamageProcess(AActor* OtherActor);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AI")
 	bool bOverlappingCombatSphere;
@@ -151,10 +161,10 @@ public:
 	bool bAttacking;
 
 	UFUNCTION(BlueprintCallable)
-	void Attack();
+	virtual void Attack();
 
 	UFUNCTION(BlueprintCallable)
-	void AttackEnd();
+	virtual void AttackEnd();
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)override;
 
@@ -162,7 +172,7 @@ public:
 
 	bool bisDying;
 
-	void Die();
+	virtual void Die();
 
 	UFUNCTION(BlueprintCallable)
 	void DeathEnd();

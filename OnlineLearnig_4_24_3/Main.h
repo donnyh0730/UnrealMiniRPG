@@ -46,6 +46,7 @@ enum class EAttackStatus : uint8
 	EAS_Attack_1 UMETA(DisplayName = "Attack_1"),
 	EAS_Attack_2 UMETA(DisplayName = "Attack_2"),
 	EAS_Attack_3 UMETA(DisplayName = "Attack_3"),
+	EAS_Skill_1  UMETA(DisplayName = "Skill_1"),
 	EAS_MAX UMETA(DisplayName = "DefaultMax"),
 };
 
@@ -128,9 +129,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	UParticleSystem* HitParticles;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UParticleSystem* SkillParticle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	USoundCue* HitSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	USoundCue* SkillSound;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
 	float BaseTurnRate;
@@ -141,6 +148,10 @@ public:
 	float InterpSpeed;
 
 	bool bInterpToEnemy;
+
+	bool bControllerYawLock;
+
+	bool bControllerPitchLock;
 
 	UPROPERTY(EditAnyWhere, BlueprintReadWrite, Category ="Combat")
 	float AttackSpeed;
@@ -172,7 +183,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player Stats")
 	int32 Coins;
 
+	UFUNCTION(BlueprintCallable)
 	void IncrementCoins(int32 Amount);
+
+	UFUNCTION(BlueprintCallable)
+	void IncrementHealth(float Amount);
 
 	void DecrementHealth(float Amount);
 
@@ -258,7 +273,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Anims")
 	bool bStartCheckComboAttack;
 
-	void PlayAttackAnimation(EWeaponType WeaponType);
+	void PlayAttackAnimation(EAttackStatus Attackstatus, EWeaponType WeaponType);
 
 	UFUNCTION(BlueprintCallable)
 	void ComboAttackStart();
@@ -277,6 +292,15 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AttackEnd();//애님 몽타주에서 불려지고있음.
+
+	UFUNCTION(BlueprintCallable)
+	void SkillParticleEmit();
+
+	UFUNCTION(BlueprintCallable)
+	void JumpAttackSkill();
+
+	UFUNCTION(BlueprintCallable)
+	void SkillEnd();
 
 	void SwitchAttackSequence(EAttackStatus Status, UAnimMontage* MontageSet);
 

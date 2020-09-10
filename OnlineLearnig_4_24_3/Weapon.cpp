@@ -21,6 +21,8 @@ AWeapon::AWeapon()
 	CombatCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CombatCollision"));
 	CombatCollision->SetupAttachment(GetRootComponent());
 
+	SkillCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SkillCollision"));
+	SkillCollision->SetupAttachment(GetRootComponent());
 
 	bWeaponParticle = false;
 
@@ -38,8 +40,13 @@ void AWeapon::BeginPlay()
 	CombatCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	CombatCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
+	SkillCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
 	CombatCollision->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapbegin);
 	CombatCollision->OnComponentEndOverlap.AddDynamic(this, &AWeapon::CombatOnOverlapEnd);
+
+	SkillCollision->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::SkillOnOverlapbegin);
+	SkillCollision->OnComponentEndOverlap.AddDynamic(this, &AWeapon::SkillOnOverlapEnd);
 }
 
 void AWeapon::OnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
@@ -71,6 +78,54 @@ void AWeapon::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 
 void AWeapon::CombatOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
+	DamageProcess(OtherActor);
+}
+
+void AWeapon::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	
+}
+
+void AWeapon::SkillOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
+{
+	DamageProcess(OtherActor);
+}
+
+void AWeapon::SkillOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+
+}
+
+void AWeapon::ActivateCollision()
+{
+	if(!OwnerCharacter)
+		return;
+	if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Skill_1)
+	{
+		SkillCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+	else
+	{
+		CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+}
+
+void AWeapon::DeactivateCollision()
+{
+	if (!OwnerCharacter)
+		return;
+	if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Skill_1)
+	{
+		SkillCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	else
+	{
+		CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+}
+
+void AWeapon::DamageProcess(AActor* OtherActor)
+{
 	if (OtherActor)
 	{
 		AEnemy* Enemy = Cast<AEnemy>(OtherActor);
@@ -84,7 +139,7 @@ void AWeapon::CombatOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AAc
 					FVector SocketLocation = PariticleSocket->GetSocketLocation(SkeletalMesh);
 					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Enemy->HitParticles, SocketLocation, FRotator(0.f), false);
 				}
-				
+
 			}
 			if (Enemy->HitSound && Enemy->Health - Damage > 0)
 			{
@@ -93,33 +148,21 @@ void AWeapon::CombatOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AAc
 			if (DamageTypeClass)
 			{
 				if (Enemy->Health - Damage <= 0)
-				{		
+				{
 					Enemy->GetMesh()->SetCollisionResponseToAllChannels(ECR_Block);
 					Enemy->GetMesh()->SetSimulatePhysics(true);
 					Enemy->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				}
 				UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, DamageTypeClass);
 			}
-			
+
 		}
 	}
 }
 
-void AWeapon::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+void AWeapon::SetMainCharacterOwner(AMain* _OwnerCharacter)
 {
-	
-}
-
-void AWeapon::ActivateCollision()
-{
-	//TArray<AActor*> Enemies;
-	//CombatCollision->GetOverlappingActors(Enemies);
-	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-}
-
-void AWeapon::DeactivateCollision()
-{
-	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	OwnerCharacter = _OwnerCharacter;
 }
 
 void AWeapon::Equip(AMain* Character)
@@ -146,7 +189,7 @@ void AWeapon::Equip(AMain* Character)
 			LeftHandSocket->AttachActor(this, Character->GetMesh());
 		}*/
 		bRotate = false;
-
+		
 		Character->SetEquippedWeapon(this);
 		Character->SetActiveOverlappingItem(nullptr);
 		if (OnEquipSound)

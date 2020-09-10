@@ -22,6 +22,7 @@ class USkeletalMeshComponent;
 class AMain;
 class USoundCue;
 class UBoxComponent;
+class USphereComponent;
 class AEnemy;
 UCLASS()
 class ONLINELEARNIG_4_24_3_API AWeapon : public AItem
@@ -48,12 +49,19 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | Combat")
 	UBoxComponent* CombatCollision;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Combat")
-	float Damage;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | Combat")
+	USphereComponent* SkillCollision;
 
 	
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Combat")
+	float Damage;
+
+	AMain* OwnerCharacter;
+
 protected:
+
+	
 
 	virtual void BeginPlay() override;
 
@@ -74,11 +82,22 @@ public:
 	UFUNCTION()
 	void CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	
+	UFUNCTION()
+	void SkillOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
+	UFUNCTION()
+	void SkillOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	UFUNCTION(BlueprintCallable)
 	void ActivateCollision();
 
 	UFUNCTION(BlueprintCallable)
 	void DeactivateCollision();
+
+	UFUNCTION()
+	void DamageProcess(AActor* OtherActor);
+
+	UFUNCTION()
+	void SetMainCharacterOwner(AMain* _OwnerCharacter);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Combat")
 	TSubclassOf<UDamageType> DamageTypeClass;

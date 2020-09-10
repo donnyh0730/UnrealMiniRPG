@@ -58,16 +58,16 @@ public:
 	UFUNCTION()
 	void OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	UFUNCTION(BlueprintImplementableEvent, Category ="Floor Switch")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable,Category ="Floor Switch")
 	void RaiseDoor();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Floor Switch")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable,Category = "Floor Switch")
 	void LowerDoor();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Floor Switch")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Floor Switch")
 	void RaiseFloorSwitch();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Floor Switch")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Floor Switch")
 	void LowerFloorSwitch();
 	
 	UFUNCTION(BlueprintCallable, Category = "Floor Switch")
@@ -76,7 +76,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Floor Switch")
 	void UpdateFloorSwitchLocation(float Z);
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void LowerDoorInSeconds(float sec);
 
 	void CloseDoor();

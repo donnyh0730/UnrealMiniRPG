@@ -40,10 +40,13 @@ AEnemy::AEnemy()
 	Health = 100.f;
 	MaxHealth = 100.f;
 	Damage = 10.f;
+	AttackSpeed = 1.35f;
+	ReactingSpeed = 1.0f;
 
 	AttackMintime = 0.5f;
 	AttackMaxtime = 3.5f;
 
+	bHasTarget = false;
 	EnemyMovementStatus = EEnemyMovementStatus::EMS_Idle;
 
 	DeathDelay = 3.0f;
@@ -76,6 +79,27 @@ void AEnemy::BeginPlay()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 }
 
+void AEnemy::DamageReact_Anim(float In_Damage)
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_Play(CombatMontage, ReactingSpeed);
+		AnimInstance->Montage_JumpToSection(FName("AttackReaction"), CombatMontage);
+	}
+}
+
+void AEnemy::AttackMotion_Anim()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_Play(CombatMontage, AttackSpeed);
+		AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
+
+	}
+}
+
 // Called every frame
 void AEnemy::Tick(float DeltaTime)
 {
@@ -101,6 +125,7 @@ void AEnemy::AgroSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, 
 		if (Main)
 		{
 			CombatTarget = Main;
+			bHasTarget = true;
 			MoveToTarget(Main);
 		}
 	}
@@ -114,6 +139,7 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		if (Main)
 		{
 			CombatTarget = nullptr;
+			bHasTarget = false;
 			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
 			if (AIController)
 			{
@@ -164,33 +190,7 @@ void AEnemy::CombatSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, 
 
 void AEnemy::CombatOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
-	if (OtherActor)
-	{
-		AMain* Main = Cast<AMain>(OtherActor);
-		if (Main)
-		{
-			if (Main->HitParticles)
-			{
-				const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
-				if (TipSocket)
-				{
-					FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
-					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
-				}
-
-			}
-			if (Main->HitSound)
-			{
-				UGameplayStatics::PlaySound2D(this, Main->HitSound);
-			}
-			if (DamageTypeClass)
-			{
-				UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);
-				//ApplyDamage가 호출되면 대상 액터의 TakeDamage가 호출된다.
-			}
-			CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
-	}
+	DamageProcess(OtherActor);
 }
 
 void AEnemy::CombatOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -209,7 +209,6 @@ void AEnemy::SwingStart()
 void AEnemy::ActivateCollision()
 {
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	
 }
 
 void AEnemy::DeactivateCollision()
@@ -245,6 +244,37 @@ void AEnemy::MoveToTarget(AMain* Target)
 }
 
 
+void AEnemy::DamageProcess(AActor* OtherActor)
+{
+	if (OtherActor)
+	{
+		AMain* Main = Cast<AMain>(OtherActor);
+		if (Main)
+		{
+			if (Main->HitParticles)
+			{
+				const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
+				if (TipSocket)
+				{
+					FVector SocketLocation = TipSocket->GetSocketLocation(GetMesh());
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Main->HitParticles, SocketLocation, FRotator(0.f), false);
+				}
+
+			}
+			if (Main->HitSound)
+			{
+				UGameplayStatics::PlaySound2D(this, Main->HitSound);
+			}
+			if (DamageTypeClass)
+			{
+				UGameplayStatics::ApplyDamage(Main, Damage, AIController, this, DamageTypeClass);
+				//ApplyDamage가 호출되면 대상 액터의 TakeDamage가 호출된다.
+			}
+			CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
+
 void AEnemy::Attack()
 {
 	if (!Alive())
@@ -255,17 +285,12 @@ void AEnemy::Attack()
 		AIController->StopMovement();
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
 	}
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (AnimInstance)
-	{
-		AnimInstance->Montage_Play(CombatMontage, 1.35f);
-		AnimInstance->Montage_JumpToSection(FName("Attack"), CombatMontage);
-	}
+	AttackMotion_Anim();
 	if (!bAttacking)
 	{
 		bAttacking = true;
-		
 	}
+
 }
 
 void AEnemy::AttackEnd()
@@ -285,6 +310,7 @@ void AEnemy::AttackEnd()
 			MoveToTarget(CombatTarget);
 		}
 	}
+
 }
 
 
@@ -298,12 +324,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 	if(Health > 0.f)
 	{
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Falling);
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimInstance)
-		{
-			AnimInstance->Montage_Play(CombatMontage, 1.0f);
-			AnimInstance->Montage_JumpToSection(FName("AttackReaction"), CombatMontage);
-		}
+		DamageReact_Anim(DamageAmount);
 	}
 
 	return DamageAmount;

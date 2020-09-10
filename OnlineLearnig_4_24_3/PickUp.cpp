@@ -11,7 +11,7 @@
 #include "Sound/SoundCue.h"
 APickUp::APickUp()
 {
-	CoinCount = 1;
+	
 }
 
 void APickUp::OnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
@@ -24,7 +24,7 @@ void APickUp::OnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* O
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
-			Main->IncrementCoins(CoinCount);
+			OnPickUpEvent(Main);
 			if (OverlapParticles)
 			{
 				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), OverlapParticles, GetActorLocation(), FRotator(0.f), true);

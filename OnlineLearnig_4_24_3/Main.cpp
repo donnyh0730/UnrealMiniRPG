@@ -66,6 +66,9 @@ AMain::AMain()
 	bInterpToEnemy = false;
 	InterpSpeed = 15.f;
 
+	bControllerYawLock = false;
+	bControllerPitchLock = false;
+
 	MovementStatus = EMovementStatus::EMS_Normal;
 	StaminaStatus = EStaminaStatus::ESS_Normal;
 	AttackStatus = EAttackStatus::EAS_Idle;
@@ -137,9 +140,9 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	PlayerInputComponent->BindAction("Charge", IE_Pressed, this, &AMain::Charge);
+	PlayerInputComponent->BindAction("Charge", IE_DoubleClick, this, &AMain::Charge);
 
-	PlayerInputComponent->BindAction("Sprint", IE_DoubleClick, this, &AMain::ShiftKeyDown);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUP);
 
 	PlayerInputComponent->BindAction("LMB", IE_Pressed, this, &AMain::LMBDown);
@@ -154,7 +157,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("TurnRate", this, &AMain::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AMain::LookUpAtRate);
 
-
+	PlayerInputComponent->BindAction("Skill_1", IE_Pressed, this, &AMain::JumpAttackSkill);
 }
 
 void AMain::SwitchMovementStatus(EStaminaStatus Status, float DeltaTime)
@@ -283,11 +286,15 @@ void AMain::MoveRight(float value)
 
 void AMain::TurnAtRate(float rate)
 {
+	if (bControllerYawLock)
+		return;
 	AddControllerYawInput(rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AMain::LookUpAtRate(float rate)
 {
+	if (bControllerPitchLock)
+		return;
 	AddControllerPitchInput(rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
@@ -295,7 +302,11 @@ void AMain::Charge()
 {
 	if (MovementStatus == EMovementStatus::EMS_Dead)
 		return;
-
+	if (Stamina < 100)
+	{
+		return;
+	}
+	Stamina -= 100;
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
 	if (!IsValid(AnimInstance))
@@ -306,10 +317,10 @@ void AMain::Charge()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
 
-	const FRotator Rotation = Controller->GetControlRotation();
+	const FRotator Rotation = GetActorRotation();
 	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 	SetActorRelativeRotation(YawRotation);
-	AnimInstance->Montage_Play(BaseMotionMontage, 1.35f);
+	AnimInstance->Montage_Play(BaseMotionMontage, 2.35f);
 	AnimInstance->Montage_JumpToSection(FName("Rolling"), BaseMotionMontage);
 	
 	AttackEnd();
@@ -320,11 +331,15 @@ void AMain::OnChargeEnd()
 {
 	
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	
 
 	const FRotator Rotation = Controller->GetControlRotation();
 	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 	SetActorRelativeRotation(YawRotation);
+	/*FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	FVector mult(100, 100, 100);
+	Direction *= mult;
+	Direction.Z = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+	SetActorLocation(Direction,true);*/
 }
 
 void AMain::Jump()
@@ -408,6 +423,7 @@ void AMain::SetEquippedWeapon(AWeapon* Weapon)
 	{
 		RightEquippedWeapon = Weapon;
 		DeterminWeaponStatus();
+		Weapon->SetMainCharacterOwner(this);
 		return;
 	}
 	/*else if(!LeftEquippedWeapon)
@@ -438,11 +454,12 @@ void AMain::DeterminWeaponStatus()
 	}
 }
 
-void AMain::PlayAttackAnimation(EWeaponType WeaponType)
+void AMain::PlayAttackAnimation(EAttackStatus Attackstatus ,EWeaponType WeaponType)
 {
 	switch (WeaponType)
 	{
 	case EWeaponType::EAS_NoWeapon:
+
 		break;
 	case EWeaponType::EAS_OneHand:
 		SwitchAttackSequence(AttackStatus, OneHandMontages);
@@ -485,7 +502,7 @@ void AMain::ComboAttack()
 		/*SetAttackStatus(EAttackStatus::EAS_Attack_1);
 		AnimInstance->Montage_Play(OneHandMontages[0], AttackSpeed);
 		AnimInstance->Montage_JumpToSection(FName("Default"), OneHandMontages[0]);*/
-		PlayAttackAnimation(WeaponStatus);
+		PlayAttackAnimation(AttackStatus,WeaponStatus);
 	}
 }
 
@@ -494,7 +511,7 @@ void AMain::ComboAttackEnd()
 	UE_LOG(LogTemp, Warning, TEXT("ComboAttackEnd()"));
 	if (bComboAttack)
 	{
-		PlayAttackAnimation(WeaponStatus);
+		PlayAttackAnimation(AttackStatus,WeaponStatus);
 	}
 	if (!bComboAttack)
 	{
@@ -547,7 +564,11 @@ void AMain::SwitchAttackSequence(EAttackStatus Status, UAnimMontage* MontageSet)
 		
 		bAttacking = false;
 		break;
+	case EAttackStatus::EAS_Skill_1:
+		SetAttackStatus(EAttackStatus::EAS_Idle);
 
+		bAttacking = false;
+		break;
 	default:
 		break;
 	}
@@ -638,6 +659,69 @@ void AMain::AttackEnd()
 	}*/
 }
 
+void AMain::SkillParticleEmit()
+{
+	if (SkillParticle)
+	{
+		if (GetWEquippedWeapon())
+		{
+			const USkeletalMeshSocket* CenterSocket = GetWEquippedWeapon()->SkeletalMesh->GetSocketByName("HitParticleSocket");
+
+			if (CenterSocket)
+			{
+				FVector SocketLocation = CenterSocket->GetSocketLocation(GetWEquippedWeapon()->SkeletalMesh);
+				
+				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SkillParticle, SocketLocation, FRotator(0.f), false);
+			}
+		}
+
+	}
+	if (SkillSound)
+	{
+		UGameplayStatics::PlaySound2D(this, SkillSound);
+	}
+}
+
+void AMain::JumpAttackSkill()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!IsValid(AnimInstance))
+	{
+		return;
+	}
+
+	bComboAttack = false;
+
+	if (MovementStatus != EMovementStatus::EMS_Dead && WeaponStatus != EWeaponType::EAS_NoWeapon)
+	{
+		if (Stamina >= 150)
+			Stamina -= 150;
+		else
+			return;
+
+		SetAttackStatus(EAttackStatus::EAS_Skill_1);
+		AnimInstance->Montage_Play(OneHandMontages, AttackSpeed);
+		AnimInstance->Montage_JumpToSection(FName("JumpAttackSkill"), OneHandMontages);
+		
+		bControllerPitchLock = true;
+		bControllerYawLock = true;
+	}
+}
+
+
+void AMain::SkillEnd()
+{
+	bStartCheckComboAttack = false;
+	bComboAttack = false;
+	LMBDownCount = 0;
+	//PlayAttackAnimation(AttackStatus, WeaponStatus);
+	SetAttackStatus(EAttackStatus::EAS_Idle);
+	bControllerPitchLock = false;
+	bControllerYawLock = false;
+	
+}
+
 void AMain::SetMovementStatus(EMovementStatus Status)
 {
 	MovementStatus = Status;
@@ -692,6 +776,18 @@ FRotator AMain::GetLookTargetYawRotaion(FVector TargetLocation)
 void AMain::IncrementCoins(int32 Amount)
 {
 	Coins += Amount;
+}
+
+void AMain::IncrementHealth(float Amount)
+{
+	if (Health + Amount >= MaxHealth)
+	{
+		Health = MaxHealth;
+	}
+	else
+	{
+		Health += Amount;
+	}
 }
 
 void AMain::DecrementHealth(float Amount)
