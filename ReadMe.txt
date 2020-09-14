@@ -28,7 +28,8 @@
 5. 보스몬스터 구현 
 	- 일반 몬스터 클래스를 상속받아 구현,
 	- 전투방식, 공격패턴 다양화 (ex : 보스는 넉백이 없고, 공격속도가 느리지만 공격력이 강하다.)
-	
+	- 공격모션 3가지, 필살기 1가지
+
 6.지형 지물 , Switch 액터,  아이템 , 포션 구현
 
 7. 위젯  구현 (C++)
@@ -51,21 +52,21 @@ I think you only need to look at the degree.
 Summary of the overall implementation you saw in the video.
 
 1. 3rd person SoulLike game character animation
--AnimationBlueprint, AnimationBlendSpace, AminMontage
+	-AnimationBlueprint, AnimationBlendSpace, AminMontage
 
 2. Monster Behaviour
-AIController, BehaviorTree, C++ combat logic
+	-AIController, BehaviorTree, C++ combat logic
 
 3. Main character attack, evasion, sprint, skill implementation
 
 4. Weapon item implementation
--Attachment and detachment.
--Applied to weapon stat attack power and attack speed.
+	-Attachment and detachment.
+	-Applied to weapon stat attack power and attack speed.
 
 5. Boss monster implementation
--Implemented by inheriting the general monster class,
--Diversification of combat method and attack pattern (ex: boss has no knockback, attack speed is slow, but attack power is strong)
-
+	-Implemented by inheriting the general monster class,
+	-Diversification of combat method and attack pattern (ex: boss has no knockback, attack speed is slow, but attack power is strong)
+	-3 attack motions, 1 special move
 6. Terrain feature, switch actor, item, potion implementation
 
 7. Widget implementation (C++)
