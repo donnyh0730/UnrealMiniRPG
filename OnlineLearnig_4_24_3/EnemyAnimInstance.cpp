@@ -31,6 +31,7 @@ void UEnemyAnimInstance::UpdateAnimationProperties()
 		FVector LateralSpeed = FVector(Speed.X, Speed.Y, 0.f);
 		MovementSpeed = LateralSpeed.Size();
 
+
 		bIsInAir = Pawn->GetMovementComponent()->IsFalling();
 
 		if (Enemy == nullptr)

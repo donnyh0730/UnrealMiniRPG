@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Enemy.h"
+#include "Blueprint/UserWidget.h"
 #include "Main.generated.h"
 
 class USpringArmComponent;
@@ -17,12 +18,14 @@ class USoundCue;
 class AEnemy;
 class AMainPlayerController;
 class USphereComponent;
+class ANPC_Character;
 
 UENUM(BlueprintType)
 enum class EMovementStatus : uint8
 {
 	EMS_Normal UMETA(DisplayName = "Noraml"),
 	EMS_Sprinting UMETA(DisplayName = "Sprinting"),
+	EMS_Rolling UMETA(DisplayName = "Rolling"),
 	EMS_Dead UMETA(DisplayName = "Dead"),
 
 	EMS_MAX UMETA(DisplayName ="DefaultMax"),
@@ -200,18 +203,27 @@ public:
 
 	FTimerHandle DeathTimer;
 
-	UFUNCTION(BlueprintCallable)
-	void Disappear();
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float DeathDelay;
 
 	TArray<AEnemy*> RecognizedEnemies;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NPC")
+	bool b_NearNPC;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NPC")
+	ANPC_Character* NearNPC_Character;
+
+	FORCEINLINE void SetNearNPC_Character(ANPC_Character* NearNPC) { NearNPC_Character = NearNPC; }
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
+	UFUNCTION()
+	virtual void RecognitionSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
+	UFUNCTION()
+	virtual void RecognitionSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -302,12 +314,31 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SkillEnd();
 
+	UFUNCTION(BlueprintCallable)
+	void Disappear();
+
 	void SwitchAttackSequence(EAttackStatus Status, UAnimMontage* MontageSet);
 
 	void DisplayAllEnemyWidgets();
 
-	UFUNCTION()
-	virtual void RecognitionSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult);
-	UFUNCTION()
-	virtual void RecognitionSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	UFUNCTION(BlueprintCallable)
+	void PrepareNearNPC(ANPC_Character* NearNPC, bool b_isNear, ESlateVisibility visibility);
+
+	UFUNCTION(BlueprintCallable)
+	void VisibleInfoWidget(ESlateVisibility visibility);
+
+	UFUNCTION(BlueprintCallable)
+	void SetInfoText(int32 num);
+
+	UFUNCTION(BlueprintCallable)
+	void SetInfoTextByString(FName message);
+
+	UFUNCTION(BlueprintCallable)
+	void Interact();
+
+	void AttackReaction();
+
+	void AttackReactionEnd();
+
+	void SetStatusNormal();
 };

@@ -52,7 +52,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Item | Combat")
 	USphereComponent* SkillCollision;
 
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Sound")
+	float WeaponAttackSpeed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Combat")
 	float Damage;
@@ -61,10 +62,9 @@ public:
 
 protected:
 
-	
-
 	virtual void BeginPlay() override;
 
+	virtual float CalcDemageConstvalue();
 public:
 
 	void Equip(AMain* Character);

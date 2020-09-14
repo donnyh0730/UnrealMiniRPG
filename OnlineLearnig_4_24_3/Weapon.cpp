@@ -28,6 +28,7 @@ AWeapon::AWeapon()
 
 	WeaponState = EWeaponState::EWS_Pickup;
 
+	WeaponAttackSpeed = 2.0f;
 	Damage = 25.f;
 }
 
@@ -49,6 +50,33 @@ void AWeapon::BeginPlay()
 	SkillCollision->OnComponentEndOverlap.AddDynamic(this, &AWeapon::SkillOnOverlapEnd);
 }
 
+float AWeapon::CalcDemageConstvalue()
+{
+	float val = 1;
+
+	if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Skill_1)
+	{
+		val = 1.0f;
+		return val;
+	}
+	else if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Attack_1)
+	{
+		val = 1.0f;
+		return val;
+	}
+	else if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Attack_2)
+	{
+		val = 1.2f;
+		return val;
+	}
+	else if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Attack_3)
+	{
+		val = 1.4f;
+		return val;
+	}
+	return val;
+}
+
 void AWeapon::OnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
 	Super::OnOverlapbegin(OverlappedComponent, OtherActor, OtherComp, OtherBodyIndex, bFromSweep, SweepResult);
@@ -59,6 +87,8 @@ void AWeapon::OnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* O
 		if (Main)
 		{
 			Main->SetActiveOverlappingItem(this);
+			Main->VisibleInfoWidget(ESlateVisibility::Visible);
+			Main->SetInfoText(6);
 		}
 	}
 }
@@ -72,6 +102,7 @@ void AWeapon::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* Oth
 		if (Main)
 		{
 			Main->SetActiveOverlappingItem(nullptr);
+			Main->VisibleInfoWidget(ESlateVisibility::Hidden);
 		}
 	}
 }
@@ -114,14 +145,10 @@ void AWeapon::DeactivateCollision()
 {
 	if (!OwnerCharacter)
 		return;
-	if (OwnerCharacter->AttackStatus == EAttackStatus::EAS_Skill_1)
-	{
-		SkillCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-	else
-	{
-		CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
+	
+	SkillCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
 }
 
 void AWeapon::DamageProcess(AActor* OtherActor)
@@ -131,7 +158,7 @@ void AWeapon::DamageProcess(AActor* OtherActor)
 		AEnemy* Enemy = Cast<AEnemy>(OtherActor);
 		if (Enemy)
 		{
-			if (Enemy->HitParticles && Enemy->Health - Damage > 0)
+			if (Enemy->HitParticles)
 			{
 				const USkeletalMeshSocket* PariticleSocket = SkeletalMesh->GetSocketByName("HitParticleSocket");
 				if (PariticleSocket)
@@ -141,7 +168,7 @@ void AWeapon::DamageProcess(AActor* OtherActor)
 				}
 
 			}
-			if (Enemy->HitSound && Enemy->Health - Damage > 0)
+			if (Enemy->HitSound)
 			{
 				UGameplayStatics::PlaySound2D(this, Enemy->HitSound);
 			}
@@ -153,7 +180,9 @@ void AWeapon::DamageProcess(AActor* OtherActor)
 					Enemy->GetMesh()->SetSimulatePhysics(true);
 					Enemy->GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 				}
-				UGameplayStatics::ApplyDamage(Enemy, Damage, WeaponInstigator, this, DamageTypeClass);
+				float constval = CalcDemageConstvalue();
+
+				UGameplayStatics::ApplyDamage(Enemy, Damage * constval, WeaponInstigator, this, DamageTypeClass);
 			}
 
 		}
@@ -198,7 +227,7 @@ void AWeapon::Equip(AMain* Character)
 		}
 		if (!bWeaponParticle)
 		{
-			IdleParticlesComponent->Deactivate();
+			//IdleParticlesComponent->Deactivate();
 		}
 	}
 }

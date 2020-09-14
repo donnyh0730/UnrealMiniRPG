@@ -4,6 +4,7 @@
 #include "FloorSwitch.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Main.h"
 #include "TimerManager.h"
 // Sets default values
 AFloorSwitch::AFloorSwitch()
@@ -61,8 +62,17 @@ void AFloorSwitch::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AAct
 	UE_LOG(LogTemp, Warning, TEXT("Overlap Begin"));
 	bIsOnPawn = true;
 	
-	RaiseDoor();
-	LowerFloorSwitch();
+	if (OtherActor)
+	{
+		AMain* main = Cast<AMain>(OtherActor);
+		if (main)
+		{
+			Main = main; 
+			RaiseDoor();
+			LowerFloorSwitch();
+		}
+	}
+	
 }
 
 void AFloorSwitch::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
@@ -70,9 +80,17 @@ void AFloorSwitch::OnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AActor
 	UE_LOG(LogTemp, Warning, TEXT("Overlap End %f seconds") , 2.0f);
 	
 	bIsOnPawn = false;
-		
+	if (OtherActor)
+	{
+		AMain* main = Cast<AMain>(OtherActor);
+		if (main)
+		{
+			Main = main;
+		}
+	}
 	LowerDoorInSeconds(2.0f);
 	RaiseFloorSwitch();
+	
 }
 
 void AFloorSwitch::UpdateDoorLocation(float Z)
@@ -101,6 +119,7 @@ void AFloorSwitch::CloseDoor()
 {
 	if (!bIsOnPawn)
 	{
+
 		LowerDoor();
 	}
 }

@@ -87,10 +87,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void BossReactionEnd();
 
+	UFUNCTION(BlueprintCallable)
+	void SkillEnd();
+
 	UFUNCTION()
 	virtual void DamageProcess(AActor* OtherActor) override;
 
 	virtual void Die();
+	 
+	virtual void Disappear() override;
 private:
 	
 	int32 NormalAttackCount;

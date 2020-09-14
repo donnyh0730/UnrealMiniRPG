@@ -107,6 +107,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	float DeathDelay;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	bool b_IsChampion;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "AI")
 	bool bHasTarget;
 
@@ -179,7 +182,13 @@ public:
 
 	bool Alive();
 
-	void Disappear();
+	virtual void Disappear();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnDeath_BP();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnDestroy_BP();
 
 	UFUNCTION(BlueprintCallable)
 	void AttackReactionEnd();

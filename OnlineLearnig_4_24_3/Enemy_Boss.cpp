@@ -32,7 +32,7 @@ AEnemy_Boss::AEnemy_Boss()
 	RightHandCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(GetMesh(), FName("RightHandSocket"));
 
-
+	b_IsChampion = true;
 }
 
 void AEnemy_Boss::BeginPlay()
@@ -68,15 +68,13 @@ void AEnemy_Boss::DamageReact_Anim(float In_Damage)
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance)
 	{
-		if (In_Damage < 30)
+		if (CombatTarget)
 		{
-			AnimInstance->Montage_Play(CombatMontage, ReactingSpeed);
-			AnimInstance->Montage_JumpToSection(FName("Reaction1"), CombatMontage);
-		}
-		else if (In_Damage >= 30)
-		{
-			AnimInstance->Montage_Play(CombatMontage, ReactingSpeed * 0.5);
-			AnimInstance->Montage_JumpToSection(FName("Reaction2"), CombatMontage);
+			if (CombatTarget->AttackStatus == EAttackStatus::EAS_Skill_1)
+			{
+				AnimInstance->Montage_Play(CombatMontage, ReactingSpeed);
+				AnimInstance->Montage_JumpToSection(FName("Reaction2"), CombatMontage);
+			}
 		}
 	}
 }
@@ -156,7 +154,10 @@ void AEnemy_Boss::Attack_Boss()
 		AIController->StopMovement();
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Attacking);
 	}
-	AttackMotion_Anim();
+
+	if(CombatTarget && bOverlappingCombatSphere)
+		AttackMotion_Anim();
+
 	if (!bAttacking)
 	{
 		bAttacking = true;
@@ -168,12 +169,14 @@ void AEnemy_Boss::AttackEnd_Boss()
 {
 	bAttacking = false;
 	SetAttackStatus(EBossAttackStatus::EAS_Idle);
+
+	float AttackTime = FMath::FRandRange(AttackMintime, AttackMaxtime);
+	GetWorldTimerManager().ClearTimer(AttackTimer);
+	GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy_Boss::Attack_Boss, AttackTime);
+
 	if (bOverlappingCombatSphere)
 	{
-		float AttackTime = FMath::FRandRange(AttackMintime, AttackMaxtime);
-		GetWorldTimerManager().ClearTimer(AttackTimer);
-		GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy_Boss::Attack_Boss, AttackTime);
-		//Attack();
+		
 	}
 	else
 	{
@@ -182,7 +185,7 @@ void AEnemy_Boss::AttackEnd_Boss()
 			MoveToTarget(CombatTarget);
 		}
 	}
-
+	
 }
 
 void AEnemy_Boss::ActivateRightCollision()
@@ -205,6 +208,19 @@ void AEnemy_Boss::DeactivateCollision_Boss()
 void AEnemy_Boss::BossReactionEnd()
 {
 	AttackEnd_Boss();
+}
+
+void AEnemy_Boss::SkillEnd()
+{
+	bAttacking = false;
+	SetAttackStatus(EBossAttackStatus::EAS_Idle);
+	if (CombatTarget)
+	{
+		float AttackTime = FMath::FRandRange(AttackMintime, AttackMaxtime);
+		GetWorldTimerManager().ClearTimer(AttackTimer);
+		GetWorldTimerManager().SetTimer(AttackTimer, this, &AEnemy_Boss::Attack_Boss, AttackTime);
+		MoveToTarget(CombatTarget);
+	}
 }
 
 void AEnemy_Boss::DamageProcess(AActor* OtherActor)
@@ -271,11 +287,19 @@ void AEnemy_Boss::Die()
 	GetMesh()->AddImpulse(Direction*-1 * 10000);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);*/
 
+	OnDeath_BP();
+
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Dead);
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::Disappear, DeathDelay);
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy_Boss::Disappear, DeathDelay);
+}
+
+void AEnemy_Boss::Disappear()
+{
+	OnDestroy_BP();
+	Destroy();
 }
 

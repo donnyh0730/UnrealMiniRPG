@@ -21,7 +21,7 @@
 // Sets default values
 AEnemy::AEnemy()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	AgroSphere = CreateDefaultSubobject<USphereComponent>(TEXT("AgroSphere"));
@@ -51,13 +51,14 @@ AEnemy::AEnemy()
 
 	DeathDelay = 3.0f;
 	bisDying = false;
+	b_IsChampion = false;
 }
 
 // Called when the game starts or when spawned
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	AIController = Cast<AAIController>(GetController());
 
 	AgroSphere->OnComponentBeginOverlap.AddDynamic(this, &AEnemy::AgroSphereOnOverlapbegin);
@@ -81,17 +82,38 @@ void AEnemy::BeginPlay()
 
 void AEnemy::DamageReact_Anim(float In_Damage)
 {
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance)
 	{
-		AnimInstance->Montage_Play(CombatMontage, ReactingSpeed);
-		AnimInstance->Montage_JumpToSection(FName("AttackReaction"), CombatMontage);
+		if (b_IsChampion)
+		{
+			if (CombatTarget)
+			{
+				if (CombatTarget->AttackStatus == EAttackStatus::EAS_Skill_1)
+				{
+					AnimInstance->Montage_Play(CombatMontage, ReactingSpeed * 0.7f);
+					AnimInstance->Montage_JumpToSection(FName("AttackReactions"), CombatMontage);
+				}
+				else
+				{
+
+				}
+			}
+		}
+		else
+		{
+			AnimInstance->Montage_Play(CombatMontage, ReactingSpeed);
+			AnimInstance->Montage_JumpToSection(FName("AttackReaction"), CombatMontage);
+		}
 	}
 }
 
 void AEnemy::AttackMotion_Anim()
 {
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
 	if (AnimInstance)
 	{
 		AnimInstance->Montage_Play(CombatMontage, AttackSpeed);
@@ -107,6 +129,14 @@ void AEnemy::Tick(float DeltaTime)
 	if (EnemyMovementStatus == EEnemyMovementStatus::EMS_Dead)
 	{
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (EnemyMovementStatus == EEnemyMovementStatus::EMS_Idle)
+	{
+		if (bOverlappingCombatSphere || CombatTarget)
+		{
+			MoveToTarget(CombatTarget);
+		}
 	}
 }
 
@@ -140,7 +170,7 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		{
 			CombatTarget = nullptr;
 			bHasTarget = false;
-			SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
+			
 			if (AIController)
 			{
 				AIController->StopMovement();
@@ -148,7 +178,7 @@ void AEnemy::AgroSphereOnOverlapEnd(UPrimitiveComponent* OverlappedComponent, AA
 		}
 
 	}
-	
+
 }
 
 void AEnemy::CombatSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
@@ -159,6 +189,7 @@ void AEnemy::CombatSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent
 		if (Main)
 		{
 			CombatTarget = Main;
+			
 			bOverlappingCombatSphere = true;
 			Attack();
 		}
@@ -219,7 +250,7 @@ void AEnemy::DeactivateCollision()
 void AEnemy::MoveToTarget(AMain* Target)
 {
 	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_MoveToTarget);
-	
+
 	if (AIController)
 	{
 		FAIMoveRequest MoveRequest;
@@ -230,16 +261,6 @@ void AEnemy::MoveToTarget(AMain* Target)
 		FNavPathSharedPtr NavPath;
 		AIController->MoveTo(MoveRequest, &NavPath);
 
-
-
-		/*TArray<FNavPathPoint> PathPoints = NavPath->GetPathPoints();
-
-		for (FNavPathPoint point : PathPoints)
-		{
-			FVector location = point.Location;
-
-			UKismetSystemLibrary::DrawDebugSphere(this, location, 25.f, 8, FLinearColor::Green, 10.f, 0.5f);
-		}*/
 	}
 }
 
@@ -251,6 +272,12 @@ void AEnemy::DamageProcess(AActor* OtherActor)
 		AMain* Main = Cast<AMain>(OtherActor);
 		if (Main)
 		{
+			if(Main->AttackStatus == EAttackStatus::EAS_Skill_1)
+			{
+				CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				return;
+			}
+			
 			if (Main->HitParticles)
 			{
 				const USkeletalMeshSocket* TipSocket = GetMesh()->GetSocketByName("TipSocket");
@@ -296,6 +323,7 @@ void AEnemy::Attack()
 void AEnemy::AttackEnd()
 {
 	bAttacking = false;
+	SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Idle);
 	if (bOverlappingCombatSphere)
 	{
 		float AttackTime = FMath::FRandRange(AttackMintime, AttackMaxtime);
@@ -321,7 +349,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 	{
 		Die();
 	}
-	if(Health > 0.f)
+	if (Health > 0.f)
 	{
 		SetEnemyMovementStatus(EEnemyMovementStatus::EMS_Falling);
 		DamageReact_Anim(DamageAmount);
@@ -332,7 +360,7 @@ float AEnemy::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEv
 
 void AEnemy::CalcDamage(float Amount)
 {
-	
+
 }
 
 void AEnemy::Die()
@@ -348,7 +376,7 @@ void AEnemy::Die()
 		AnimInstance->Montage_Play(CombatMontage, 1.0f);
 		AnimInstance->Montage_JumpToSection(FName("Death"));
 	}*/
-	
+
 	/*const FRotator Rotation = AIController->GetControlRotation();
 	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 
@@ -360,6 +388,8 @@ void AEnemy::Die()
 	GetMesh()->AddImpulse(Direction*-1 * 10000);
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);*/
 
+	OnDeath_BP();
+
 	if (FinalHitSound)
 	{
 		UGameplayStatics::PlaySound2D(this, FinalHitSound);
@@ -369,7 +399,7 @@ void AEnemy::Die()
 	CombatCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	AgroSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	CombatSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	//GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::Disappear, DeathDelay);
 }
 
@@ -377,8 +407,8 @@ void AEnemy::DeathEnd()
 {
 	//GetMesh()->bPauseAnims = true;
 	//GetMesh()->bNoSkeletonUpdate = true;
-	
-	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::Disappear,DeathDelay);
+
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &AEnemy::Disappear, DeathDelay);
 }
 
 bool AEnemy::Alive()
@@ -388,6 +418,7 @@ bool AEnemy::Alive()
 
 void AEnemy::Disappear()
 {
+	OnDestroy_BP();
 	Destroy();
 }
 
@@ -411,8 +442,8 @@ void AEnemy::HealthBarProjectToViewport()
 	{
 		FVector2D PositionInViewport;
 
-		AMainPlayerController* MainPlayerController = Cast<AMainPlayerController>(UGameplayStatics::GetPlayerController(this,0));
-		if(MainPlayerController)
+		AMainPlayerController* MainPlayerController = Cast<AMainPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+		if (MainPlayerController)
 			MainPlayerController->ProjectWorldLocationToScreen(GetActorLocation(), PositionInViewport);
 
 		FVector2D SizeInViewPort(300.f, 25.f);

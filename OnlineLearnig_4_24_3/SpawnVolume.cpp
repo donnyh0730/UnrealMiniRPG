@@ -35,11 +35,11 @@ FVector ASpawnVolume::GetSpawnPoint()
 	FVector Origin = SpawningBox->GetComponentLocation();
 
 	FVector Point = UKismetMathLibrary::RandomPointInBoundingBox(Origin, Extent);
-	//Point.Z = 0.f;
+	Point.Z += 10.f;
 	return Point;
 }
 
-void ASpawnVolume::SpawnOurPawn_Implementation(UClass* ToSpawn, const FVector& location)
+AActor* ASpawnVolume::SpawnActor(UClass* ToSpawn, const FVector& location)
 {
 	if (ToSpawn)
 	{
@@ -47,8 +47,11 @@ void ASpawnVolume::SpawnOurPawn_Implementation(UClass* ToSpawn, const FVector& l
 		FActorSpawnParameters SpawnParams;
 		if (World)
 		{
-			ACritter* CritterSpawned =World->SpawnActor<ACritter>(ToSpawn, location, FRotator(0.f), SpawnParams);
+			AActor* SpawnedActor = World->SpawnActor<AActor>(ToSpawn, location, FRotator(0.f), SpawnParams);
+			return SpawnedActor;
 		}
 	}
+	
+	return nullptr;
 }
 

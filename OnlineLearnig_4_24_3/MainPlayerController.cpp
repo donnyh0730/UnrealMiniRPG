@@ -4,6 +4,8 @@
 #include "MainPlayerController.h"
 #include "Enemy.h"
 #include "EnemyHealthBar.h"
+#include "InfoWidget.h"
+#include "DialogueWidget.h"
 #include "Blueprint/UserWidget.h"
 
 
@@ -13,11 +15,23 @@ void AMainPlayerController::BeginPlay()
 	if (HudOverlayAsset)
 	{
 		HUDOverlay = CreateWidget<UUserWidget>(this,HudOverlayAsset);
+		HUDOverlay->AddToViewport();
+		HUDOverlay->SetVisibility(ESlateVisibility::Visible);
 	}
 	
-	HUDOverlay->AddToViewport();
-	HUDOverlay->SetVisibility(ESlateVisibility::Visible);
+	if (InfoWidgetAsset)
+	{
+		InfoWidget = CreateWidget<UInfoWidget>(this, InfoWidgetAsset);
+		InfoWidget->AddToViewport();
+		InfoWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
 
+	if (DialogueWidgetAsset)
+	{
+		DialogueWidget = CreateWidget<UDialogueWidget>(this, DialogueWidgetAsset);
+		DialogueWidget->AddToViewport();
+		DialogueWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
 }
 
 void AMainPlayerController::Tick(float DeltaTime)
@@ -51,5 +65,35 @@ void AMainPlayerController::DeleteWidgetFromEnemy(AEnemy* enemy)
 		EnemyHealthBars.Remove(EnemyHealthBar);
 		EnemyHealthBar->RemoveFromParent();
 	}
+}
+
+void AMainPlayerController::SetVisibleInfoWidget(ESlateVisibility visibility)
+{
+	if(InfoWidget)
+		InfoWidget->SetVisibility(visibility);
+}
+
+void AMainPlayerController::SetInfoWidgetText(int32 num)
+{
+	if (InfoWidget)
+		InfoWidget->SetInfotext(num);
+}
+
+void AMainPlayerController::SetInfoWidgetTextByString(FName message)
+{
+	if (InfoWidget)
+		InfoWidget->SetInfotextByString(message);
+}
+
+void AMainPlayerController::SetVisibleDialogueWidget(ESlateVisibility visibility)
+{
+	if(DialogueWidget)
+		DialogueWidget->SetVisibility(visibility);
+}
+
+void AMainPlayerController::SetDialogueWidgetText(int32 num)
+{
+	if(DialogueWidget)
+		DialogueWidget->SetDialoguetext(num);
 }
 

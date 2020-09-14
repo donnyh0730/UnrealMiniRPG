@@ -7,7 +7,6 @@
 #include "SpawnVolume.generated.h"
 
 class UBoxComponent;
-class ACritter;
 
 UCLASS()
 class ONLINELEARNIG_4_24_3_API ASpawnVolume : public AActor
@@ -22,7 +21,7 @@ public:
 	UBoxComponent* SpawningBox;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly,Category = "Spawning")
-	TSubclassOf<ACritter> PawntoSpawn;
+	TSubclassOf<AActor> ActortoSpawn;
 
 protected:
 	// Called when the game starts or when spawned
@@ -35,7 +34,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Spawning")
 	FVector GetSpawnPoint();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Spawning")
-	void SpawnOurPawn(UClass* ToSpawn, const FVector& location);
+	UFUNCTION(BlueprintCallable, BlueprintCallable, Category = "Spawning")
+	AActor* SpawnActor(UClass* ToSpawn, const FVector& location);
 
 };

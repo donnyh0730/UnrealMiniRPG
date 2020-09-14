@@ -8,6 +8,7 @@
 
 class UBoxComponent;
 class UStaticMeshComponent;
+class AMain;
 UCLASS()
 class ONLINELEARNIG_4_24_3_API AFloorSwitch : public AActor
 {
@@ -31,6 +32,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Floor Switch")
 	FVector SwitchInitiallocation;
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadWrite, Category = "Floor Switch")
+	AMain* Main;
 
 private:
 	

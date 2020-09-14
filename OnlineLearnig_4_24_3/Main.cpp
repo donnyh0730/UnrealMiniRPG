@@ -20,6 +20,8 @@
 #include "Sound/SoundCue.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "NPC_Character.h"
 #include "TimerManager.h"
 // Sets default values
 AMain::AMain()
@@ -86,6 +88,7 @@ AMain::AMain()
 	bHasCombatTarget = false;
 
 	bEquipedWeapon = false;
+	b_NearNPC = false;
 }
 
 // Called when the game starts or when spawned
@@ -140,7 +143,7 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMain::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
-	PlayerInputComponent->BindAction("Charge", IE_DoubleClick, this, &AMain::Charge);
+	PlayerInputComponent->BindAction("Charge", IE_Pressed, this, &AMain::Charge);
 
 	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMain::ShiftKeyDown);
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMain::ShiftKeyUP);
@@ -158,6 +161,8 @@ void AMain::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AMain::LookUpAtRate);
 
 	PlayerInputComponent->BindAction("Skill_1", IE_Pressed, this, &AMain::JumpAttackSkill);
+
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &AMain::Interact);
 }
 
 void AMain::SwitchMovementStatus(EStaminaStatus Status, float DeltaTime)
@@ -316,13 +321,16 @@ void AMain::Charge()
 
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Ignore);
-
+	if (RightEquippedWeapon)
+	{
+		RightEquippedWeapon ->DeactivateCollision();
+	}
 	const FRotator Rotation = GetActorRotation();
 	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 	SetActorRelativeRotation(YawRotation);
 	AnimInstance->Montage_Play(BaseMotionMontage, 2.35f);
 	AnimInstance->Montage_JumpToSection(FName("Rolling"), BaseMotionMontage);
-	
+	SetMovementStatus(EMovementStatus::EMS_Rolling);
 	AttackEnd();
 	ComboAttackEnd();
 }
@@ -335,6 +343,8 @@ void AMain::OnChargeEnd()
 	const FRotator Rotation = Controller->GetControlRotation();
 	const FRotator YawRotation(0.f, Rotation.Yaw, 0.f);
 	SetActorRelativeRotation(YawRotation);
+
+	SetMovementStatus(EMovementStatus::EMS_Normal);
 	/*FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	FVector mult(100, 100, 100);
 	Direction *= mult;
@@ -368,6 +378,9 @@ void AMain::LMBDown()
 	else if (WeaponStatus==EWeaponType::EAS_OneHand || WeaponStatus==EWeaponType::EAS_DualBlade)
 	{
 		//Attack();
+		if(MovementStatus == EMovementStatus::EMS_Rolling)
+		 return;
+
 		ComboAttack();
 		LMBDownCount++;
 	}
@@ -424,6 +437,8 @@ void AMain::SetEquippedWeapon(AWeapon* Weapon)
 		RightEquippedWeapon = Weapon;
 		DeterminWeaponStatus();
 		Weapon->SetMainCharacterOwner(this);
+
+		AttackSpeed = Weapon->WeaponAttackSpeed;
 		return;
 	}
 	/*else if(!LeftEquippedWeapon)
@@ -584,6 +599,15 @@ void AMain::DisplayAllEnemyWidgets()
 
 }
 
+void AMain::PrepareNearNPC(ANPC_Character* NearNPC, bool b_isNear, ESlateVisibility visibility)
+{
+	SetNearNPC_Character(NearNPC);
+	b_NearNPC = b_isNear;
+	VisibleInfoWidget(visibility);
+
+	SetInfoText(1);
+}
+
 void AMain::RecognitionSphereOnOverlapbegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult & SweepResult)
 {
 	UE_LOG(LogTemp, Warning, TEXT("RecognitionSphereOnOverlapbegin"));
@@ -610,6 +634,84 @@ void AMain::RecognitionSphereOnOverlapEnd(UPrimitiveComponent* OverlappedCompone
 			RecognizedEnemies.Remove(Enemy);
 		}
 	}
+}
+
+void AMain::VisibleInfoWidget(ESlateVisibility visibility)
+{
+	if (MainPlayerController)
+	{
+		MainPlayerController->SetVisibleInfoWidget(visibility);
+	}
+}
+
+void AMain::SetInfoText(int32 num)
+{
+	if (MainPlayerController)
+	{
+		MainPlayerController->SetInfoWidgetText(num);
+	}
+}
+
+void AMain::SetInfoTextByString(FName message)
+{
+	if (MainPlayerController)
+	{
+		MainPlayerController->SetInfoWidgetTextByString(message);
+	}
+}
+
+void AMain::Interact()
+{
+	if (b_NearNPC)
+	{
+		if (NearNPC_Character)
+		{
+			if (MainPlayerController)
+			{
+				MainPlayerController->SetVisibleInfoWidget(ESlateVisibility::Hidden);
+				MainPlayerController->SetVisibleDialogueWidget(ESlateVisibility::Visible);
+
+				NearNPC_Character->OnInteractInBase();
+			}
+		}
+	}
+}
+
+void AMain::AttackReaction()
+{
+	bAttacking = false;
+	bStartCheckComboAttack = false;
+	bComboAttack = false;
+	LMBDownCount = 0;
+
+	if(RightEquippedWeapon)
+		RightEquippedWeapon->DeactivateCollision();
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (AnimInstance && BaseMotionMontage)
+	{
+		AnimInstance->Montage_Play(BaseMotionMontage, 2.0f);
+		AnimInstance->Montage_JumpToSection(FName("AttackReact"), BaseMotionMontage);
+		SetAttackStatus(EAttackStatus::EAS_Idle);
+		SetMovementStatus(EMovementStatus::EMS_Normal);
+	}
+}
+
+void AMain::AttackReactionEnd()
+{
+	SetStatusNormal();
+}
+
+void AMain::SetStatusNormal()
+{
+	SetAttackStatus(EAttackStatus::EAS_Idle);
+	SetMovementStatus(EMovementStatus::EMS_Normal);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	bAttacking = false;
+	bStartCheckComboAttack = false;
+	bComboAttack = false;
+	LMBDownCount = 0;
 }
 
 void AMain::Attack()
@@ -700,10 +802,14 @@ void AMain::JumpAttackSkill()
 		else
 			return;
 
+		if (RightEquippedWeapon)
+			RightEquippedWeapon->DeactivateCollision();
+
 		SetAttackStatus(EAttackStatus::EAS_Skill_1);
 		AnimInstance->Montage_Play(OneHandMontages, AttackSpeed);
 		AnimInstance->Montage_JumpToSection(FName("JumpAttackSkill"), OneHandMontages);
 		
+
 		bControllerPitchLock = true;
 		bControllerYawLock = true;
 	}
@@ -712,6 +818,7 @@ void AMain::JumpAttackSkill()
 
 void AMain::SkillEnd()
 {
+	bAttacking = false;
 	bStartCheckComboAttack = false;
 	bComboAttack = false;
 	LMBDownCount = 0;
@@ -793,7 +900,7 @@ void AMain::IncrementHealth(float Amount)
 void AMain::DecrementHealth(float Amount)
 {
 	Health -= Amount;
-	if (Health - Amount <= 0.f)
+	if (Health <= 0.f)
 	{
 		Die();
 	}
@@ -802,7 +909,8 @@ void AMain::DecrementHealth(float Amount)
 float AMain::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
 {
 	DecrementHealth(DamageAmount);
-
+	if(MovementStatus != EMovementStatus::EMS_Dead)
+		AttackReaction();
 	return DamageAmount;
 }
 
@@ -825,11 +933,19 @@ void AMain::DeathEnd()
 {
 	GetMesh()->bPauseAnims = true;
 	GetMesh()->bNoSkeletonUpdate = true;
-
-	GetWorldTimerManager().SetTimer(DeathTimer, this, &AMain::Disappear, DeathDelay);
+	Disappear();
+	//GetWorldTimerManager().SetTimer(DeathTimer, this, &AMain::Disappear, DeathDelay);
 }
 
 void AMain::Disappear()
 {
-
+	const FVector StartLocaion = FVector(-200.f,-1900.f,100.f);
+	SetActorLocation(StartLocaion);
+	GetMesh()->bPauseAnims = false;
+	GetMesh()->bNoSkeletonUpdate = false;
+	Health = 100;
+	RecognitionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	SetMovementStatus(EMovementStatus::EMS_Normal);
+	SetStatusNormal();
 }
